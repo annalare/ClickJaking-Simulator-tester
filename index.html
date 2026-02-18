@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Teste de Clickjacking - Monitoramento</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        min-height: 100vh;
+        padding: 20px;
+        color: #fff;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+        color: #e94560;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #888;
+        margin-bottom: 30px;
+      }
+
+      .warning-box {
+        background: #2d2d44;
+        border-left: 4px solid #e94560;
+        padding: 15px 20px;
+        margin-bottom: 30px;
+        border-radius: 0 8px 8px 0;
+      }
+
+      .warning-box h3 {
+        color: #e94560;
+        margin-bottom: 8px;
+      }
+
+      .test-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+        gap: 20px;
+        margin-top: 20px;
+      }
+
+      .test-card {
+        background: #1f1f35;
+        border-radius: 12px;
+        overflow: hidden;
+        border: 1px solid #333;
+      }
+
+      .test-header {
+        padding: 15px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid #333;
+      }
+
+      .test-header h3 {
+        font-size: 16px;
+      }
+
+      .status {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+      }
+
+      .status.blocked {
+        background: #0d4d2a;
+        color: #4ade80;
+      }
+
+      .status.allowed {
+        background: #4d2d0d;
+        color: #fbbf24;
+      }
+
+      .status.loading {
+        background: #1e3a5f;
+        color: #60a5fa;
+      }
+
+      .iframe-container {
+        position: relative;
+        height: 400px;
+        background: #0a0a14;
+      }
+
+      .iframe-container iframe {
+        width: 100%;
+        height: 100%;
+        border: none;
+      }
+
+      .overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        background: rgba(10, 10, 20, 0.95);
+        padding: 20px;
+        text-align: center;
+      }
+
+      .overlay.hidden {
+        display: none;
+      }
+
+      .overlay .icon {
+        font-size: 48px;
+        margin-bottom: 15px;
+      }
+
+      .overlay h4 {
+        margin-bottom: 10px;
+        color: #4ade80;
+      }
+
+      .overlay p {
+        color: #888;
+        font-size: 14px;
+        max-width: 350px;
+      }
+
+      .url-info {
+        padding: 10px 20px;
+        background: #15152a;
+        border-top: 1px solid #333;
+        font-family: monospace;
+        font-size: 13px;
+        color: #60a5fa;
+        word-break: break-all;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        margin-bottom: 30px;
+        flex-wrap: wrap;
+      }
+
+      .controls input {
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid #333;
+        background: #1f1f35;
+        color: #fff;
+        font-size: 14px;
+        width: 300px;
+      }
+
+      .controls button {
+        padding: 12px 24px;
+        border-radius: 8px;
+        border: none;
+        background: #e94560;
+        color: #fff;
+        font-size: 14px;
+        cursor: pointer;
+        font-weight: bold;
+        transition: background 0.2s;
+      }
+
+      .controls button:hover {
+        background: #c73e54;
+      }
+
+      .result-box {
+        margin-top: 30px;
+        padding: 20px;
+        background: #1f1f35;
+        border-radius: 12px;
+        border: 1px solid #333;
+      }
+
+      .result-box h3 {
+        margin-bottom: 15px;
+        color: #e94560;
+      }
+
+      .result-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 10px 0;
+        border-bottom: 1px solid #333;
+      }
+
+      .result-item:last-child {
+        border-bottom: none;
+      }
+
+      .check {
+        color: #4ade80;
+      }
+
+      .cross {
+        color: #ef4444;
+      }
+
+      .info-section {
+        margin-top: 30px;
+        padding: 20px;
+        background: #1f1f35;
+        border-radius: 12px;
+        border: 1px solid #333;
+      }
+
+      .info-section h3 {
+        color: #60a5fa;
+        margin-bottom: 15px;
+      }
+
+      .info-section code {
+        background: #0a0a14;
+        padding: 2px 8px;
+        border-radius: 4px;
+        color: #fbbf24;
+      }
+
+      .info-section ul {
+        margin-left: 20px;
+        margin-top: 10px;
+      }
+
+      .info-section li {
+        margin-bottom: 8px;
+        color: #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Teste de Protecao contra Clickjacking</h1>
+      <p class="subtitle">Simulando tentativa de ataque no projeto 7az-front</p>
+
+      <div class="warning-box">
+        <h3>O que este teste faz?</h3>
+        <p>
+          Esta pagina simula um site malicioso tentando carregar seu aplicativo
+          dentro de iframes. Se a protecao estiver funcionando, os iframes das
+          rotas protegidas nao devem carregar.
+        </p>
+      </div>
+
+      <div class="controls">
+        <input
+          type="text"
+          id="baseUrl"
+          placeholder="URL base"
+          value="coloque-aqui-a-url-do-seu-front"
+        />
+        <button onclick="runTests()">Executar Testes</button>
+      </div>
+
+      <div class="test-grid">
+        <!-- Teste 1: Rota raiz -->
+        <div class="test-card">
+          <div class="test-header">
+            <h3>Teste 1: Rota Principal (/)</h3>
+            <span class="status blocked" id="status1">DEVE BLOQUEAR</span>
+          </div>
+          <div class="iframe-container">
+            <iframe
+              id="iframe1"
+              sandbox="allow-scripts allow-same-origin"
+            ></iframe>
+            <div class="overlay" id="overlay1">
+              <div class="icon">&#128274;</div>
+              <h4>Aguardando teste...</h4>
+              <p>Clique em "Executar Testes" para iniciar</p>
+            </div>
+          </div>
+          <div class="url-info" id="url1">URL: -</div>
+        </div>
+
+        <!-- Teste 2: Rota /login -->
+        <div class="test-card">
+          <div class="test-header">
+            <h3>Teste 2: Rota de Login (/login)</h3>
+            <span class="status blocked" id="status2">DEVE BLOQUEAR</span>
+          </div>
+          <div class="iframe-container">
+            <iframe
+              id="iframe2"
+              sandbox="allow-scripts allow-same-origin"
+            ></iframe>
+            <div class="overlay" id="overlay2">
+              <div class="icon">&#128274;</div>
+              <h4>Aguardando teste...</h4>
+              <p>Clique em "Executar Testes" para iniciar</p>
+            </div>
+          </div>
+          <div class="url-info" id="url2">URL: -</div>
+        </div>
+
+        <!-- Teste 3: Rota /embed -->
+        <div class="test-card">
+          <div class="test-header">
+            <h3>Teste 3: Rota Embed (/embed/test)</h3>
+            <span class="status allowed" id="status3">DEVE PERMITIR</span>
+          </div>
+          <div class="iframe-container">
+            <iframe
+              id="iframe3"
+              sandbox="allow-scripts allow-same-origin"
+            ></iframe>
+            <div class="overlay" id="overlay3">
+              <div class="icon">&#128275;</div>
+              <h4>Aguardando teste...</h4>
+              <p>Clique em "Executar Testes" para iniciar</p>
+            </div>
+          </div>
+          <div class="url-info" id="url3">URL: -</div>
+        </div>
+
+        <!-- Teste 4: Qualquer outra rota -->
+        <div class="test-card">
+          <div class="test-header">
+            <h3>Teste 4: Outra Rota (/dashboard)</h3>
+            <span class="status blocked" id="status4">DEVE BLOQUEAR</span>
+          </div>
+          <div class="iframe-container">
+            <iframe
+              id="iframe4"
+              sandbox="allow-scripts allow-same-origin"
+            ></iframe>
+            <div class="overlay" id="overlay4">
+              <div class="icon">&#128274;</div>
+              <h4>Aguardando teste...</h4>
+              <p>Clique em "Executar Testes" para iniciar</p>
+            </div>
+          </div>
+          <div class="url-info" id="url4">URL: -</div>
+        </div>
+      </div>
+
+      <div class="result-box" id="resultBox" style="display: none">
+        <h3>Resultado dos Testes</h3>
+        <div id="results"></div>
+      </div>
+
+      <div class="info-section">
+        <h3>Como verificar manualmente?</h3>
+        <ul>
+          <li>
+            Abra o <strong>DevTools</strong> (F12) e va na aba
+            <strong>Console</strong>
+          </li>
+          <li>
+            Se a protecao estiver funcionando, voce vera erros como: <br /><code
+              >Refused to display 'http://localhost:5173/' in a frame because it
+              set 'X-Frame-Options' to 'deny'</code
+            >
+          </li>
+          <li>
+            Na aba <strong>Network</strong>, verifique os headers de resposta -
+            deve conter: <br /><code>X-Frame-Options: DENY</code> <br /><code
+              >Content-Security-Policy: frame-ancestors 'none'</code
+            >
+          </li>
+        </ul>
+      </div>
+
+      <div class="info-section">
+        <h3>Headers implementados no 7az-front:</h3>
+        <ul>
+          <li>
+            <code>X-Frame-Options: DENY</code> - Header classico, suportado por
+            navegadores antigos
+          </li>
+          <li>
+            <code>Content-Security-Policy: frame-ancestors 'none'</code> -
+            Header moderno, mais flexivel
+          </li>
+          <li>
+            <code>X-Content-Type-Options: nosniff</code> - Previne MIME type
+            sniffing
+          </li>
+          <li>
+            <code>Referrer-Policy: strict-origin-when-cross-origin</code> -
+            Controla informacoes de referrer
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <script>
+      const testConfigs = [
+        { id: 1, path: "/", shouldBlock: true },
+        { id: 2, path: "/login", shouldBlock: true },
+        { id: 3, path: "/embed/test", shouldBlock: false },
+        { id: 4, path: "/dashboard", shouldBlock: true },
+      ];
+
+      function runTests() {
+        const baseUrl = document
+          .getElementById("baseUrl")
+          .value.replace(/\/$/, "");
+        const results = [];
+
+        testConfigs.forEach((config) => {
+          const url = baseUrl + config.path;
+          const iframe = document.getElementById(`iframe${config.id}`);
+          const overlay = document.getElementById(`overlay${config.id}`);
+          const urlInfo = document.getElementById(`url${config.id}`);
+          const status = document.getElementById(`status${config.id}`);
+
+          urlInfo.textContent = `URL: ${url}`;
+          overlay.innerHTML = `
+                    <div class="icon">&#9203;</div>
+                    <h4>Carregando...</h4>
+                    <p>Tentando carregar o iframe</p>
+                `;
+          status.className = "status loading";
+          status.textContent = "TESTANDO...";
+
+          // Limpar iframe anterior
+          iframe.src = "about:blank";
+
+          // Pequeno delay para resetar
+          setTimeout(() => {
+            iframe.src = url;
+          }, 100);
+
+          // Verificar apos alguns segundos
+          setTimeout(() => {
+            checkIframeLoaded(config, baseUrl);
+          }, 3000);
+        });
+      }
+
+      function checkIframeLoaded(config, baseUrl) {
+        const iframe = document.getElementById(`iframe${config.id}`);
+        const overlay = document.getElementById(`overlay${config.id}`);
+        const status = document.getElementById(`status${config.id}`);
+
+        let loaded = false;
+
+        try {
+          // Tentar acessar o conteudo do iframe
+          // Se bloqueado por X-Frame-Options, isso vai falhar
+          const iframeDoc =
+            iframe.contentDocument || iframe.contentWindow.document;
+
+          // Se chegou aqui e tem conteudo, o iframe carregou
+          if (
+            iframeDoc &&
+            iframeDoc.body &&
+            iframeDoc.body.innerHTML.length > 0
+          ) {
+            loaded = true;
+          }
+        } catch (e) {
+          // Cross-origin error - pode significar que carregou mas nao podemos acessar
+          // ou que foi bloqueado
+          console.log(`Iframe ${config.id} error:`, e.message);
+        }
+
+        // Verificar se o iframe tem dimensoes (outro indicador de carregamento)
+        const iframeRect = iframe.getBoundingClientRect();
+
+        if (config.shouldBlock) {
+          // Deveria bloquear
+          if (!loaded) {
+            // Sucesso - foi bloqueado
+            overlay.innerHTML = `
+                        <div class="icon">&#9989;</div>
+                        <h4 style="color: #4ade80;">PROTEGIDO!</h4>
+                        <p>O iframe foi bloqueado corretamente pelos headers de seguranca.</p>
+                    `;
+            status.className = "status blocked";
+            status.textContent = "BLOQUEADO";
+          } else {
+            // Falha - deveria bloquear mas carregou
+            overlay.classList.add("hidden");
+            status.className = "status";
+            status.style.background = "#4d0d0d";
+            status.style.color = "#ef4444";
+            status.textContent = "VULNERAVEL!";
+          }
+        } else {
+          // Deveria permitir (rota /embed)
+          overlay.innerHTML = `
+                    <div class="icon">&#9989;</div>
+                    <h4 style="color: #fbbf24;">Embed permitido</h4>
+                    <p>Esta rota permite iframe conforme configurado.</p>
+                `;
+          status.className = "status allowed";
+          status.textContent = "PERMITIDO";
+        }
+      }
+
+      // Listener para erros de carregamento de iframe
+      window.addEventListener("message", function (event) {
+        console.log("Message from iframe:", event.data);
+      });
+    </script>
+  </body>
+</html>
